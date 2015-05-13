@@ -17,11 +17,11 @@
             </intent-filter>
         </activity>
 
-        <Receiver android:name=".AlarmManager">
-            <Intent-filter>
+        <receiver android:name=".AlarmReceiver">
+            <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
-            </Intent-filter>
-        </Receiver>
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

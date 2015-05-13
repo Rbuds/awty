@@ -2,10 +2,8 @@ package com.example.ryan.arewethereyet;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -17,18 +15,16 @@ import android.widget.Toast;
 
 public class StartScreen extends ActionBarActivity implements View.OnClickListener {
 
-    private PendingIntent alarmIntent = null;
-    BroadcastReceiver alarmReceiver;
-    AlarmManager am;
+    private PendingIntent pendingIntent;
+    private Intent alarmIntent;
     private boolean started = false;
-    public String areaCode = "";
-    public String prefix = "";
-    public String suffix = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start_screen);
+
+        alarmIntent = new Intent(StartScreen.this, AlarmReceiver.class);
         Button startBtn = (Button) findViewById(R.id.startBtn);
         startBtn.setOnClickListener(this);
     }
@@ -38,25 +34,19 @@ public class StartScreen extends ActionBarActivity implements View.OnClickListen
         EditText msgView = (EditText) findViewById(R.id.msgField);
         EditText targetView = (EditText) findViewById(R.id.targetPhone);
         String msg = msgView.getText().toString();
-        final String targetNum = targetView.getText().toString();
+        String targetNum = targetView.getText().toString();
 
         if (msg != null && targetNum != null) {
             EditText timeText = (EditText) findViewById(R.id.intervalField);
             String time = timeText.getText().toString();
-            int interval = Integer.parseInt(time);
+            int interval = Integer.parseInt(time) * 1000;
             Button btn = (Button) findViewById(R.id.startBtn);
             if (interval > 0) {
-                registerReceiver(alarmReceiver, new IntentFilter("com.example.ryan.arewethereyet"));
-                am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                Intent i = new Intent();
-                alarmIntent = PendingIntent.getBroadcast(this, 0, i, 0);
                 if (!started) {
                     btn.setText("Stop");
                     started = true;
-                    areaCode = targetNum.substring(0, 3);
-                    prefix = targetNum.substring(3, 6);
-                    suffix = targetNum.substring(6, 10);
-                    start(areaCode, prefix, suffix, interval);
+                    alarmIntent.putExtra("targetNum", targetNum);
+                    start(targetNum, interval);
                 } else {
                     btn.setText("Start");
                     started = false;
@@ -66,15 +56,20 @@ public class StartScreen extends ActionBarActivity implements View.OnClickListen
         }
     }
 
-    public void start(String areaCode, String prefix, String suffix, int interval) {
+    public void start(String targetNum, int interval) {
         AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        manager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), interval, alarmIntent);
-        Toast.makeText(this, "(" + areaCode + ") " + prefix + "-" + suffix + ": Are we there yet?", Toast.LENGTH_SHORT).show();
+        pendingIntent = PendingIntent.getBroadcast(StartScreen.this, 0, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        manager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), interval, pendingIntent);
+        Toast.makeText(this, targetNum + ": Are we there yet?", Toast.LENGTH_SHORT).show();
     }
 
     public void cancel() {
         AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        manager.cancel(alarmIntent);
+        if (pendingIntent == null) {
+            Intent intent = new Intent(StartScreen.this, AlarmReceiver.class);
+            pendingIntent = PendingIntent.getBroadcast(StartScreen.this, 0, intent, 0);
+        }
+        manager.cancel(pendingIntent);
     }
 
     @Override
