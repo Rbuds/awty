@@ -2,10 +2,13 @@ package com.example.ryan.arewethereyet;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.telephony.SmsManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -18,15 +21,37 @@ public class StartScreen extends ActionBarActivity implements View.OnClickListen
     private PendingIntent pendingIntent;
     private Intent alarmIntent;
     private boolean started = false;
+    BroadcastReceiver alarmReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start_screen);
-
         alarmIntent = new Intent(StartScreen.this, AlarmReceiver.class);
         Button startBtn = (Button) findViewById(R.id.startBtn);
         startBtn.setOnClickListener(this);
+        alarmReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+
+                if (intent != null) {
+                    String targetNum = intent.getStringExtra("targetNum");
+                    String sms = intent.getStringExtra("message");
+
+                    try {
+                        SmsManager smsManager = SmsManager.getDefault();
+                        smsManager.sendTextMessage(targetNum, null, sms, null, null);
+                        Toast.makeText(context, "SMS Sent!", Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Toast.makeText(context, "SMS faild, please try again later!",
+                                Toast.LENGTH_LONG).show();
+                        e.printStackTrace();
+                    }
+                }
+            }
+        };
+        registerReceiver(alarmReceiver, new IntentFilter("com.example.ryan.arewethereyet.alarms"));
+        alarmIntent.setAction("com.example.ryan.arewethereyet.alarms");
     }
 
     @Override
@@ -39,14 +64,15 @@ public class StartScreen extends ActionBarActivity implements View.OnClickListen
         if (msg != null && targetNum != null) {
             EditText timeText = (EditText) findViewById(R.id.intervalField);
             String time = timeText.getText().toString();
-            int interval = Integer.parseInt(time) * 1000;
+            int interval = Integer.parseInt(time) * 1000 * 60;
             Button btn = (Button) findViewById(R.id.startBtn);
             if (interval > 0) {
                 if (!started) {
                     btn.setText("Stop");
                     started = true;
                     alarmIntent.putExtra("targetNum", targetNum);
-                    start(targetNum, interval);
+                    alarmIntent.putExtra("message", msg);
+                    start(interval);
                 } else {
                     btn.setText("Start");
                     started = false;
@@ -56,11 +82,10 @@ public class StartScreen extends ActionBarActivity implements View.OnClickListen
         }
     }
 
-    public void start(String targetNum, int interval) {
+    public void start(int interval) {
         AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         pendingIntent = PendingIntent.getBroadcast(StartScreen.this, 0, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         manager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), interval, pendingIntent);
-        Toast.makeText(this, targetNum + ": Are we there yet?", Toast.LENGTH_SHORT).show();
     }
 
     public void cancel() {
